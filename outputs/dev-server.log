@@ -1,0 +1,10 @@
+
+> as-collection-store@1.0.0 dev
+> next dev
+
+▲ Next.js 16.4.4 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.10:3000
+- Environments: .env
+✓ Ready in 874ms
+✓ Running next.config.ts took 94ms

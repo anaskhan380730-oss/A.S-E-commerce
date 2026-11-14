@@ -1,0 +1,10 @@
+import{describe,it,expect}from'vitest';import{calculatePromotions,type PromotionInput}from'./commerce';
+const promo=(values:Partial<PromotionInput>):PromotionInput=>({id:'p',type:'PERCENT',code:null,value:null,minimumOrder:null,maxUses:null,useCount:0,startsAt:null,endsAt:null,config:null,...values});
+describe('promotion calculations',()=>{
+ it('caps a percentage coupon at the basket value',()=>{const r=calculatePromotions([{productId:'a',categoryId:'c',unitPrice:1000,quantity:1}],[promo({code:'SAVE',type:'PERCENT',value:25})],'save',250,10000);expect(r.discount).toBe(250);expect(r.total).toBe(1000)});
+ it('applies buy two get one to the lowest priced eligible unit',()=>{const r=calculatePromotions([{productId:'a',categoryId:'c',unitPrice:1000,quantity:2},{productId:'b',categoryId:'c',unitPrice:700,quantity:1}],[promo({type:'BUY_X_GET_Y',config:{buyQuantity:2,rewardQuantity:1,productIds:['a','b']}})],undefined,250,10000);expect(r.discount).toBe(700);expect(r.total).toBe(2250)});
+ it('prices a qualifying bundle at its configured price',()=>{const r=calculatePromotions([{productId:'a',categoryId:'c',unitPrice:900,quantity:1},{productId:'b',categoryId:'c',unitPrice:800,quantity:1}],[promo({type:'BUNDLE',config:{bundleQuantity:2,bundlePrice:1400}})],undefined,250,10000);expect(r.discount).toBe(300)});
+ it('waives delivery for free shipping promotions',()=>{const r=calculatePromotions([{productId:'a',categoryId:'c',unitPrice:1000,quantity:1}],[promo({type:'FREE_SHIPPING'})],undefined,250,10000);expect(r.shipping).toBe(0)});
+ it('limits coupon discounts to configured eligible products',()=>{const r=calculatePromotions([{productId:'a',categoryId:'c',unitPrice:1000,quantity:1},{productId:'b',categoryId:'c',unitPrice:500,quantity:1}],[promo({code:'ONLYA',type:'PERCENT',value:20,config:{productIds:['a']}})],'ONLYA',250,10000);expect(r.discount).toBe(200)});
+ it('does not apply expired or exhausted promotions',()=>{const r=calculatePromotions([{productId:'a',categoryId:'c',unitPrice:1000,quantity:3}],[promo({type:'BUY_X_GET_Y',maxUses:1,useCount:1,config:{buyQuantity:2,rewardQuantity:1}})],undefined,250,10000);expect(r.discount).toBe(0)});
+});

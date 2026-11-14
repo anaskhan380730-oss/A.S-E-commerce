@@ -1,0 +1,2 @@
+import{describe,it,expect}from'vitest';import{calculateTotals}from'./money';
+describe('checkout totals',()=>{it('adds delivery below the complimentary threshold',()=>{expect(calculateTotals([{unitPrice:2000,quantity:2}])).toEqual({subtotal:4000,shipping:250,total:4250})});it('waives delivery at the threshold',()=>{expect(calculateTotals([{unitPrice:5000,quantity:2}])).toEqual({subtotal:10000,shipping:0,total:10000})});it('returns zero for an empty cart',()=>{expect(calculateTotals([])).toEqual({subtotal:0,shipping:0,total:0})})});

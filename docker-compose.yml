@@ -1,0 +1,19 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ascollection
+      POSTGRES_PASSWORD: ascollection
+      POSTGRES_DB: ascollection
+    ports:
+      - "5432:5432"
+    volumes:
+      - ascollection_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ascollection -d ascollection"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+volumes:
+  ascollection_data:

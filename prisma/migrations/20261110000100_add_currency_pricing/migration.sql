@@ -1,0 +1,8 @@
+ALTER TABLE "Product"
+ADD COLUMN "priceUsdCents" INTEGER,
+ADD COLUMN "compareAtPriceUsdCents" INTEGER;
+
+ALTER TABLE "StoreSettings"
+ADD COLUMN "displayCurrency" TEXT NOT NULL DEFAULT 'PKR',
+ADD COLUMN "usdToPkrRate" DECIMAL(10,2) NOT NULL DEFAULT 280.00,
+ADD COLUMN "wholesaleUsdPriceCents" INTEGER;

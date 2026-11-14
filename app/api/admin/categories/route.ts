@@ -1,0 +1,3 @@
+import{NextResponse}from'next/server';import{db}from'@/lib/db';import{isAdmin}from'@/lib/auth';
+export async function GET(){return NextResponse.json(await db.category.findMany({orderBy:{name:'asc'}}))}
+export async function POST(req:Request){if(!await isAdmin())return NextResponse.json({error:'Unauthorized'},{status:401});const{name,slug,customMeasurements=false}=await req.json();if(typeof name!=='string'||name.length<2||typeof slug!=='string'||!/^[a-z0-9-]+$/.test(slug))return NextResponse.json({error:'Enter a category name and URL slug.'},{status:400});try{return NextResponse.json(await db.category.create({data:{name,slug,customMeasurements}}),{status:201})}catch{return NextResponse.json({error:'Category name or slug already exists.'},{status:409})}}

@@ -1,0 +1,289 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Category {
+  id                 String    @id @default(cuid())
+  name               String    @unique
+  slug               String    @unique
+  description        String?
+  customMeasurements Boolean   @default(false)
+  measurementFields  Json?
+  products           Product[]
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+model Product {
+  id                     String      @id @default(cuid())
+  name                   String
+  slug                   String      @unique
+  sku                    String      @unique
+  description            String      @db.Text
+  price                  Int
+  compareAtPrice         Int?
+  priceUsdCents          Int?
+  compareAtPriceUsdCents Int?
+  images                 Json
+  colors                 Json
+  sizes                  Json
+  featured               Boolean     @default(false)
+  isNew                  Boolean     @default(false)
+  active                 Boolean     @default(true)
+  wholesaleEnabled       Boolean     @default(false)
+  wholesalePrice         Int?
+  wholesalePriceUsdCents Int?
+  customMeasurements     Boolean?
+  categoryId             String
+  category               Category    @relation(fields: [categoryId], references: [id])
+  variants               Variant[]
+  orderItems             OrderItem[]
+  reels                  StoreReel[]
+  createdAt              DateTime    @default(now())
+  updatedAt              DateTime    @updatedAt
+
+  @@index([categoryId, active])
+}
+
+model StoreReel {
+  id                 String   @id @default(cuid())
+  title              String
+  mediaUrl           String
+  cloudinaryPublicId String?
+  localFileName      String?
+  active             Boolean  @default(true)
+  sortOrder          Int      @default(0)
+  productId          String?
+  product            Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([active, sortOrder])
+}
+
+model Variant {
+  id         String      @id @default(cuid())
+  productId  String
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  color      String?
+  size       String?
+  sku        String      @unique
+  stock      Int         @default(0)
+  active     Boolean     @default(true)
+  orderItems OrderItem[]
+
+  @@index([productId, color, size])
+}
+
+model Order {
+  id                    String      @id @default(cuid())
+  number                String      @unique
+  idempotencyKey        String?     @unique
+  customerName          String
+  customerId            String?
+  customer              Customer?   @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  email                 String
+  phone                 String
+  address               String      @db.Text
+  city                  String
+  country               String      @default("Pakistan")
+  orderType             String      @default("RETAIL")
+  orderCurrency         String      @default("PKR")
+  orderCurrencyRate     Decimal     @default(280.00) @db.Decimal(10, 2)
+  orderCurrencySubtotal Int         @default(0)
+  orderCurrencyShipping Int         @default(0)
+  orderCurrencyDiscount Int         @default(0)
+  orderCurrencyTotal    Int         @default(0)
+  subtotal              Int
+  shipping              Int
+  discount              Int         @default(0)
+  total                 Int
+  status                String      @default("PENDING")
+  paymentMethod         String      @default("COD")
+  paymentStatus         String      @default("UNPAID")
+  paidCurrency          String?
+  paidAmountMinor       Int?
+  providerReference     String?     @unique
+  stitchingStatus       String      @default("NOT_REQUIRED")
+  stitchingNotes        String?     @db.Text
+  returnStatus          String      @default("NONE")
+  returnNotes           String?     @db.Text
+  returnUpdatedAt       DateTime?
+  whatsappNumber        String?
+  items                 OrderItem[]
+  reviews               Review[]
+  createdAt             DateTime    @default(now())
+
+  @@index([createdAt, status])
+  @@index([customerId, createdAt])
+  @@index([country, city, orderCurrency])
+  @@index([paidCurrency, paymentStatus])
+}
+
+model OrderItem {
+  id           String   @id @default(cuid())
+  orderId      String
+  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId    String
+  product      Product  @relation(fields: [productId], references: [id])
+  variantId    String?
+  variant      Variant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  productName  String
+  unitPrice    Int
+  quantity     Int
+  lineDiscount Int      @default(0)
+  color        String?
+  size         String?
+  fitting      String   @default("STANDARD")
+  measurements Json?
+}
+
+model AbandonedCheckout {
+  id              String   @id @default(cuid())
+  sessionKey      String   @unique
+  customerName    String?
+  email           String?
+  phone           String?
+  address         String?  @db.Text
+  city            String?
+  country         String?
+  emailConsent    Boolean  @default(false)
+  whatsappConsent Boolean  @default(false)
+  purchaseType    String   @default("RETAIL")
+  items           Json
+  status          String   @default("OPEN")
+  expiresAt       DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status, updatedAt])
+  @@index([expiresAt])
+}
+
+model Promotion {
+  id           String    @id @default(cuid())
+  name         String
+  type         String
+  code         String?   @unique
+  value        Int?
+  active       Boolean   @default(false)
+  startsAt     DateTime?
+  endsAt       DateTime?
+  minimumOrder Int?
+  maxUses      Int?
+  useCount     Int       @default(0)
+  config       Json?
+  createdAt    DateTime  @default(now())
+}
+
+model StoreSettings {
+  id                               String   @id @default("store")
+  deliveryFee                      Int      @default(250)
+  deliveryFeeUsdCents              Int?
+  freeDeliveryThreshold            Int      @default(10000)
+  freeDeliveryThresholdUsdCents    Int?
+  internationalShippingEnabled     Boolean  @default(false)
+  internationalDeliveryFeeUsdCents Int?
+  internationalCountries           String   @default("") @db.Text
+  internationalDeliveryDays        String   @default("12–15 days")
+  codEnabled                       Boolean  @default(true)
+  customStitchingEnabled           Boolean  @default(true)
+  whatsappNumber                   String   @default("")
+  storeName                        String   @default("AS Collection")
+  wholesalePrice                   Int      @default(1000)
+  wholesaleMinimum                 Int      @default(50)
+  wholesaleDeliveryFee             Int      @default(850)
+  wholesaleDescription             String   @default("Made from high-quality Adamjee Parkhel Cotton for a soft and comfortable feel. The overall design stays consistent across colours; embroidered bunch designs vary by colour. Choose your preferred colour and size. Finished with attention to quality and detail.") @db.Text
+  displayCurrency                  String   @default("PKR")
+  usdToPkrRate                     Decimal  @default(280.00) @db.Decimal(10, 2)
+  wholesaleUsdPriceCents           Int?
+  shippingPolicy                   String   @default("") @db.Text
+  returnsPolicy                    String   @default("") @db.Text
+  privacyPolicy                    String   @default("") @db.Text
+  termsPolicy                      String   @default("") @db.Text
+  updatedAt                        DateTime @updatedAt
+}
+
+model AdminUser {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Customer {
+  id                  String                       @id @default(cuid())
+  email               String                       @unique
+  name                String
+  phone               String?
+  address             String?                      @db.Text
+  city                String?
+  country             String?
+  passwordHash        String
+  passwordVersion     Int                          @default(0)
+  orders              Order[]
+  passwordResetTokens CustomerPasswordResetToken[]
+  createdAt           DateTime                     @default(now())
+  updatedAt           DateTime                     @updatedAt
+}
+
+model CustomerPasswordResetToken {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  @@index([customerId, expiresAt])
+  @@index([expiresAt])
+}
+
+model CustomerAuthRateLimit {
+  key       String   @id
+  count     Int      @default(0)
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
+
+model SiteSection {
+  id           String  @id @default(cuid())
+  key          String  @unique
+  title        String
+  subtitle     String?
+  imageUrl     String?
+  buttonLabel  String?
+  buttonUrl    String?
+  visible      Boolean @default(true)
+  sortOrder    Int     @default(0)
+  productSlugs Json?
+}
+
+model Review {
+  id                           String   @id @default(cuid())
+  productId                    String?
+  orderId                      String?
+  order                        Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  author                       String
+  rating                       Int
+  body                         String   @db.Text
+  source                       String   @default("WHATSAPP")
+  customerConsent              Boolean  @default(false)
+  screenshotConsent            Boolean  @default(false)
+  screenshotUrl                String?
+  screenshotCloudinaryPublicId String?
+  screenshotLocalFileName      String?
+  verifiedPurchase             Boolean  @default(false)
+  approved                     Boolean  @default(false)
+  createdAt                    DateTime @default(now())
+
+  @@index([approved, createdAt])
+  @@index([orderId])
+}

@@ -1,0 +1,4 @@
+ALTER TABLE "Order"
+ADD COLUMN "returnStatus" TEXT NOT NULL DEFAULT 'NONE',
+ADD COLUMN "returnNotes" TEXT,
+ADD COLUMN "returnUpdatedAt" TIMESTAMP(3);
