@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 
 const WINDOW_MS = 15 * 60 * 1000;
 
-export async function checkCustomerAuthRateLimit(request: Request, scope: string, limit: number) {
+export async function checkRateLimit(request: Request, scope: string, limit: number) {
   const forwarded = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
   const address = request.headers.get('x-real-ip')?.trim() || forwarded || 'unknown';
   const key = createHash('sha256')
@@ -19,10 +19,11 @@ export async function checkCustomerAuthRateLimit(request: Request, scope: string
   return entry.count <= limit;
 }
 
-export function validPasswordLength(password: string) {
-  return password.length >= 10 && Buffer.byteLength(password, 'utf8') <= 72;
-}
-
 export function normalizedEmail(value: string) {
   return value.trim().toLowerCase();
+}
+
+export async function readJson(request: Request): Promise<unknown> {
+  try { return await request.json(); }
+  catch { return undefined; }
 }

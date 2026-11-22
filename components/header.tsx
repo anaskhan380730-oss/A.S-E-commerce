@@ -36,7 +36,7 @@ export function Header() {
       <nav className={open ? 'nav open' : 'nav'} aria-label="Main navigation">{links.map(([label, slug]) => <Link key={slug} href={hrefFor(slug)} onClick={() => setOpen(false)}>{label}</Link>)}</nav>
       <div className="head-actions">
         <button className="icon-button" aria-label="Search" onClick={() => setSearch(!search)}><Search/></button>
-        <Link href="/account" className="head-link">Account</Link>
+        <Link href="/account" className="head-link">Orders</Link>
         <Link href="/cart" className="cart-link"><ShoppingBag size={19}/> <span>Bag ({items.reduce((sum, item) => sum + item.quantity, 0)})</span></Link>
       </div>
     </header>

@@ -25,6 +25,9 @@ const schema = z.object({
   displayCurrency: z.enum(['PKR', 'USD']),
   usdToPkrRate: z.number().min(1).max(100000),
   wholesaleUsdPriceCents: z.number().int().positive().max(100000000).nullable(),
+  confirmationDelayHours: z.number().int().min(0).max(168),
+  feedbackAfterMonths: z.number().int().min(1).max(36),
+  feedbackMessage: z.string().trim().min(20).max(1000),
 }).superRefine((settings, context) => {
   if (!settings.internationalShippingEnabled) return;
   if (settings.internationalDeliveryFeeUsdCents === null) {

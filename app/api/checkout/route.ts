@@ -6,7 +6,7 @@ import { priceInPkr, type DisplayCurrency } from '@/lib/money';
 import { measurementGroups } from '@/lib/measurements';
 import { assertSafepayReady, createSafepayCheckoutUrl, createSafepayTracker, safepayStatus } from '@/lib/payments/safepay';
 import { internationalShippingError, isPakistan } from '@/lib/shipping';
-import { getCustomer } from '@/lib/auth';
+import { getStoreSettings } from '@/lib/store-settings';
 
 function toCurrencyMinor(amountPkr: number, currency: DisplayCurrency, exchangeRate: number) {
   return currency === 'USD' ? Math.round(amountPkr / exchangeRate * 100) : amountPkr;
@@ -55,6 +55,11 @@ async function releaseUnlinkedCardOrder(orderId: string) {
       await tx.variant.update({ where: { id: item.variantId }, data: { stock: { increment: item.quantity } } });
     }
     await tx.order.update({ where: { id: order.id }, data: { status: 'CANCELLED', paymentStatus: 'FAILED' } });
+    await tx.canceledOrder.upsert({
+      where: { orderId: order.id },
+      update: {},
+      create: { orderId: order.id, orderNumber: order.number, customerName: order.customerName, email: order.email, phone: order.phone, total: order.total, reason: 'Card payment could not be started.', canceledBy: 'SYSTEM', followUpStatus: 'NO_ACTION' },
+    });
   });
 }
 
@@ -66,13 +71,6 @@ export async function POST(req: Request) {
   const parsed = checkoutSchema.safeParse(raw);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message || 'Please review your details and cart.' }, { status: 400 });
   const input = parsed.data;
-  const signedInCustomer = await getCustomer();
-  if (!signedInCustomer) {
-    return NextResponse.json({ error: 'Please create an account or sign in before entering delivery details and placing an order.' }, { status: 401 });
-  }
-  if (signedInCustomer && signedInCustomer.email !== input.email.trim().toLowerCase()) {
-    return NextResponse.json({ error: `You are signed in as ${signedInCustomer.email}. Use that email for this order.` }, { status: 400 });
-  }
 
   const domesticOrder = isPakistan(input.country);
   if (!domesticOrder && input.paymentMethod !== 'CARD') {
@@ -83,7 +81,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'International checkout is unavailable until the live card gateway is approved and configured.' }, { status: 503 });
   }
 
-  const preflightSettings = await db.storeSettings.upsert({ where: { id: 'store' }, update: {}, create: { id: 'store' } });
+  const preflightSettings = await getStoreSettings();
   const shippingError = internationalShippingError(input.country, preflightSettings);
   if (shippingError) return NextResponse.json({ error: shippingError }, { status: 400 });
 
@@ -101,7 +99,7 @@ export async function POST(req: Request) {
         return { order: prior, whatsapp: prior.whatsappNumber || '', created: false };
       }
 
-      const settings = await tx.storeSettings.upsert({ where: { id: 'store' }, update: {}, create: { id: 'store' } });
+      const settings = await getStoreSettings(tx);
       const currentShippingError = internationalShippingError(input.country, settings);
       if (currentShippingError) throw new Error(currentShippingError);
       if (!isPakistan(input.country) && input.paymentMethod !== 'CARD') throw new Error('International orders require card payment. Cash on Delivery is only available in Pakistan.');
@@ -189,19 +187,12 @@ export async function POST(req: Request) {
 
       const number = `ASC-${Date.now().toString(36).toUpperCase()}-${input.idempotencyKey.toUpperCase()}`;
       const custom = rows.some((row) => row.line.fitting === 'CUSTOM');
-      if (signedInCustomer) {
-        await tx.customer.update({
-          where: { id: signedInCustomer.id },
-          data: { name: input.customerName, phone: input.phone, address: input.address, city: input.city, country: input.country.trim() },
-        });
-      }
       const order = await tx.order.create({
         data: {
           number,
           idempotencyKey: input.idempotencyKey,
           orderType: input.purchaseType,
           customerName: input.customerName,
-          customerId: signedInCustomer?.id,
           email: input.email.toLowerCase(),
           phone: input.phone,
           address: input.address,
@@ -241,6 +232,12 @@ export async function POST(req: Request) {
       for (const { line, variant } of rows) {
         const updated = await tx.variant.updateMany({ where: { id: variant.id, stock: { gte: line.quantity } }, data: { stock: { decrement: line.quantity } } });
         if (updated.count !== 1) throw new Error('Stock changed during checkout. Please try again.');
+      }
+      if (input.sessionKey) {
+        await tx.suspect.updateMany({
+          where: { sessionKey: input.sessionKey, status: { not: 'CONVERTED' } },
+          data: { status: 'CONVERTED', orderId: order.id, convertedAt: new Date() },
+        });
       }
       return { order, whatsapp: settings.whatsappNumber, created: true };
     }, { isolationLevel: 'Serializable' });
@@ -285,6 +282,11 @@ export async function POST(req: Request) {
         } catch { /* Return the safe general conflict response below. */ }
       }
     }
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Checkout failed.' }, { status: 409 });
+    if (code === 'P2034') return NextResponse.json({ error: 'The store is busy right now. Please press Place order again.' }, { status: 409 });
+    if (code || !(error instanceof Error)) {
+      console.error('Checkout failed:', error);
+      return NextResponse.json({ error: 'Checkout failed. Please try again in a moment.' }, { status: 500 });
+    }
+    return NextResponse.json({ error: error.message }, { status: 409 });
   }
 }
