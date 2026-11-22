@@ -6,7 +6,7 @@ type ProductOption = { id: string; name: string; active: boolean };
 type Reel = { id: string; title: string; mediaUrl: string; active: boolean; productId: string | null; product?: ProductOption | null };
 const MAX_VIDEO_BYTES = 1_000_000_000;
 
-function sendUploadRequest(url: string, method: 'POST' | 'PUT', body: BodyInit, headers: Record<string, string>, onProgress: (loaded: number) => void) {
+function sendUploadRequest(url: string, method: 'POST' | 'PUT', body: XMLHttpRequestBodyInit, headers: Record<string, string>, onProgress: (loaded: number) => void) {
   return new Promise<{ status: number; data: any }>((resolve, reject) => {
     const request = new XMLHttpRequest();
     request.open(method, url);

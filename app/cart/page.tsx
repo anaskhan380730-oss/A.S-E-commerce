@@ -34,7 +34,6 @@ export default function CartPage() {
   const requestKey = useRef('');
   const wholesaleQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
   const isWholesale = items.length > 0 && purchaseType === 'WHOLESALE';
-  const wholesalePrice = Number(settings.wholesalePrice) || 1000;
   const wholesaleMinimum = Number(settings.wholesaleMinimum) || 50;
   const minimumRemaining = Math.max(0, wholesaleMinimum - wholesaleQuantity);
   const internationalCountries = settings.internationalShippingEnabled ? parseInternationalCountries(settings.internationalCountries) : [];

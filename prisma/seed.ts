@@ -25,6 +25,7 @@ async function main(){
   ['offers','Special Offers','A little something for your next favourite.','View offers','/collections/offers']
  ];
  for(let i=0;i<sections.length;i++){const[key,title,subtitle,buttonLabel,buttonUrl]=sections[i];await db.siteSection.upsert({where:{key},update:{},create:{key,title,subtitle,buttonLabel,buttonUrl,sortOrder:i}});}
+ await db.storeSettings.upsert({where:{id:'store'},update:{},create:{id:'store'}});
  const email=process.env.ADMIN_EMAIL?.toLowerCase(),password=process.env.ADMIN_PASSWORD;if(!email||!password||password==='change-this-before-use')throw new Error('Set a private ADMIN_EMAIL and change ADMIN_PASSWORD in .env before seeding.');
  const passwordHash=await bcrypt.hash(password,12);await db.adminUser.upsert({where:{email},update:{},create:{email,passwordHash}});
 }
